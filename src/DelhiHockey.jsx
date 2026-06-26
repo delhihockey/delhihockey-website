@@ -2153,9 +2153,13 @@ const CSS = `
 .mega{font-family:'Archivo',sans-serif;font-weight:800;font-size:clamp(56px,9vw,118px);line-height:.92;letter-spacing:-2px;margin:0;color:#fff;text-transform:uppercase}
 .hero-copy{font-size:17px;line-height:1.65;color:rgba(255,255,255,.82);max-width:440px;margin:26px 0 26px}
 .socs{display:flex;gap:12px}
-.soc{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff;transition:.15s}
+.soc{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:${BLUE_SOFT};color:${ACCENT};transition:.15s}
 .soc:hover{background:${GOLD};color:${ACCENT2}}
 .soc.sm{width:36px;height:36px}
+.hero .soc{background:rgba(255,255,255,.1);color:#fff}
+.hero .soc:hover{background:${GOLD};color:${ACCENT2}}
+.ftr .soc{background:rgba(255,255,255,.1);color:#fff}
+.ftr .soc:hover{background:${GOLD};color:${ACCENT2}}
 .cta{margin-top:28px;background:${GOLD};color:${ACCENT2};border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;padding:14px 30px;border-radius:8px;cursor:pointer;transition:.15s}
 .cta:hover{filter:brightness(1.05)}
 
