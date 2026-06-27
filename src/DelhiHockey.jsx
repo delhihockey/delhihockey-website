@@ -3,22 +3,24 @@ import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
 
 // ============================================================
-// Delhi Hockey — clean white / blue / yellow. Public site + admin.
-// Data persists via window.storage (shared = true).
+// Delhi Hockey — white-dominant, blue accents. Public site + admin.
+// Data persists via Supabase.
 // ============================================================
 
-const BG = "#FFFFFF";        // page background — white
-const BG2 = "#F4F7FB";        // subtle blue-tinted off-white
-const ACCENT = "#0F2147";     // dark navy
-const ACCENT2 = "#091633";    // deeper navy
-const BLUE_SOFT = "#E8ECF4";  // pale navy wash
-const GOLD = "#F5B312";       // yellow
-const GOLD_DEEP = "#D99A00";  // darker yellow for text-on-white
-const TEXT = "#16233D";       // near-navy ink for body text
-const MUTE = "#5E6B82";       // muted blue-grey
-const LINE = "#E2E8F2";       // light blue-grey border
+const BG = "#FCFDFE";        // page background — barely-there white
+const BG2 = "#F7F9FB";        // soft off-white for sections / alt rows
+const ACCENT = "#003366";     // primary blue (text, accents, buttons)
+const ACCENT2 = "#00264D";    // deeper blue (hover)
+const BLUE_SOFT = "#EEF3F8";  // pale blue wash
+const GOLD = "#6FA8DC";       // light blue accent (was yellow)
+const GOLD_DEEP = "#2E6CA6";  // mid blue for small labels / stats text
+const TEXT = "#1A2A3A";       // dark ink for body text
+const MUTE = "#5A6B82";       // muted blue-grey
+const LINE = "#E4E9EE";       // soft neutral-white border
+const ORANGE = "#FFA500";     // highlight accent (live, new, leader, open)
+const ORANGE_DEEP = "#B5660A"; // orange text on light bg
+const ORANGE_SOFT = "#FFF1DB"; // soft orange tint for badges
 
-const ADMIN_PASSWORD = "delhihockey2024";
 
 // per-page SEO metadata (title + meta description)
 const SEO = {
@@ -363,7 +365,10 @@ function RegCard({ f }) {
   const live = f.status === "live" && f.url;
   return (
     <div className={"reg-card" + (live ? "" : " soon")}>
-      <div className="reg-name">{f.label}</div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+        <div className="reg-name">{f.label}</div>
+        {live && <span className="pill-open">OPEN</span>}
+      </div>
       {live ? (
         <>
           <a className="reg-btn" href={f.url} target="_blank" rel="noreferrer">Register {I.ext()}</a>
@@ -414,12 +419,19 @@ function LiveDocuments({ docs, go }) {
   );
 }
 function LiveRow({ d }) {
+  const isNew = (() => {
+    if (!d.date) return false;
+    const t = new Date(d.date).getTime();
+    if (isNaN(t)) return false;
+    return (Date.now() - t) < 14 * 24 * 60 * 60 * 1000 && t <= Date.now() + 24 * 60 * 60 * 1000;
+  })();
   return (
     <div className="live-row">
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="live-date">{fmtDate(d.date)}</div>
         <div className="live-title">{d.title}</div>
       </div>
+      {isNew && <span className="badge-new">NEW</span>}
       <a className="live-dl" href={d.dataUrl} download={d.fileName || d.title} title={"Download " + d.kind} aria-label={"Download " + d.title}>{I.dl()}</a>
     </div>
   );
@@ -676,7 +688,7 @@ function StandingsView({ teams, matches }) {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.id}>
+            <tr key={r.id} className={i === 0 ? "leader" : ""}>
               <td className="rank">{i + 1}</td>
               <td className="l team">{r.name}</td>
               <td>{r.P}</td><td>{r.W}</td><td>{r.D}</td><td>{r.L}</td>
@@ -1026,7 +1038,9 @@ function Footer({ go, onAdmin }) {
 // ============================================================
 function Admin({ onClose, state, setters }) {
   const [authed, setAuthed] = useState(false);
+  const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("Documents");
   const [toast, setToast] = useState("");
   const flash = (m) => { setToast(m); setTimeout(() => setToast(""), 2600); };
@@ -1037,15 +1051,45 @@ function Admin({ onClose, state, setters }) {
     return () => { onSaveError = null; };
   }, []);
 
+  // if an admin session already exists (e.g. page was reloaded), restore it
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session) setAuthed(true);
+    });
+  }, []);
+
+  const signIn = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+      if (error) { flash("Wrong email or password"); setBusy(false); return; }
+      setAuthed(true);
+    } catch {
+      flash("Couldn't sign in — check your connection");
+    }
+    setBusy(false);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setAuthed(false);
+    onClose();
+  };
+
   if (!authed) {
     return (
       <Overlay onClose={onClose}>
         <h2 className="ah">Admin access</h2>
-        <p className="amut">Enter the password to manage the website.</p>
+        <p className="amut">Sign in to manage the website.</p>
+        <input className="inp" type="email" placeholder="Email" value={email}
+          onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
         <input className="inp" type="password" placeholder="Password" value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && (pw === ADMIN_PASSWORD ? setAuthed(true) : flash("Wrong password"))} />
-        <button className="btn" style={{ width: "100%", marginTop: 4 }} onClick={() => pw === ADMIN_PASSWORD ? setAuthed(true) : flash("Wrong password")}>Enter</button>
+          onChange={(e) => setPw(e.target.value)} autoComplete="current-password"
+          onKeyDown={(e) => e.key === "Enter" && signIn()} />
+        <button className="btn" style={{ width: "100%", marginTop: 4 }} disabled={busy} onClick={signIn}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
         {toast && <Toast>{toast}</Toast>}
       </Overlay>
     );
@@ -1054,7 +1098,7 @@ function Admin({ onClose, state, setters }) {
   const TABS = ["Documents", "About page", "Calendar", "Partners", "FIH Rules", "Registration", "League"];
   return (
     <Overlay onClose={onClose} wide>
-      <div className="arow"><h2 className="ah" style={{ margin: 0 }}>Manage website</h2><button className="x" onClick={onClose}>✕</button></div>
+      <div className="arow"><h2 className="ah" style={{ margin: 0 }}>Manage website</h2><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button className="linkbtn" style={{ color: MUTE, marginLeft: 0 }} onClick={signOut}>Sign out</button><button className="x" onClick={onClose}>✕</button></div></div>
       <div className="atabs">{TABS.map((t) => <button key={t} className={"atab" + (tab === t ? " on" : "")} onClick={() => setTab(t)}>{t}</button>)}</div>
       <div style={{ marginTop: 16 }}>
         {tab === "Documents" && <DocManager label="document" items={state.docs} setItems={setters.setDocs} storageKey="dh_docs" flash={flash} requireFile />}
@@ -2133,40 +2177,39 @@ const CSS = `
 .wrap{max-width:1240px;margin:0 auto;padding:0 28px}
 
 /* header */
-.hdr{position:sticky;top:0;z-index:40;background:${ACCENT};border-bottom:1px solid rgba(255,255,255,.1)}
+.hdr{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid ${LINE}}
 .hdr-in{display:flex;align-items:center;justify-content:space-between;padding:15px 28px}
-.wordmark-sm{background:none;border:none;cursor:pointer;font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.3px;color:#fff;padding:0}
+.wordmark-sm{background:none;border:none;cursor:pointer;font-family:'Archivo',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.3px;color:${ACCENT};padding:0}
 .wordmark-sm span{color:${GOLD}}
 .dnav{display:flex;gap:4px}
-.nav{background:none;border:none;color:rgba(255,255,255,.78);font:inherit;font-size:13px;font-weight:600;letter-spacing:.5px;padding:8px 12px;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
-.nav:hover{color:#fff}
-.nav.on{color:${GOLD};border-bottom-color:${GOLD}}
+.nav{background:none;border:none;color:${MUTE};font:inherit;font-size:13px;font-weight:600;letter-spacing:.5px;padding:8px 12px;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.nav:hover{color:${ACCENT}}
+.nav.on{color:${ACCENT};border-bottom-color:${ORANGE}}
 .burger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:6px}
-.burger span{width:24px;height:2.5px;background:#fff;border-radius:2px}
-.mnav{display:flex;flex-direction:column;padding:6px 18px 16px;gap:2px;background:${ACCENT}}
-.mnav-l{text-align:left;background:none;border:none;color:rgba(255,255,255,.8);font:inherit;font-size:14px;font-weight:600;padding:11px 8px;cursor:pointer}
-.mnav-l.on{color:${GOLD}}
+.burger span{width:24px;height:2.5px;background:${ACCENT};border-radius:2px}
+.mnav{display:flex;flex-direction:column;padding:6px 18px 16px;gap:2px;background:#fff;border-bottom:1px solid ${LINE}}
+.mnav-l{text-align:left;background:none;border:none;color:${MUTE};font:inherit;font-size:14px;font-weight:600;padding:11px 8px;cursor:pointer}
+.mnav-l.on{color:${ACCENT}}
 
 /* hero */
-.hero{position:relative;overflow:hidden;background:${ACCENT}}
+.hero{position:relative;overflow:hidden;background:${BG}}
 .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;min-height:64vh;padding:64px 28px}
-.mega{font-family:'Archivo',sans-serif;font-weight:800;font-size:clamp(56px,9vw,118px);line-height:.92;letter-spacing:-2px;margin:0;color:#fff;text-transform:uppercase}
-.hero-copy{font-size:17px;line-height:1.65;color:rgba(255,255,255,.82);max-width:440px;margin:26px 0 26px}
+.mega{font-family:'Archivo',sans-serif;font-weight:800;font-size:clamp(56px,9vw,118px);line-height:.92;letter-spacing:-2px;margin:0;color:${ACCENT};text-transform:uppercase}
+.mega::after{content:'';display:block;width:64px;height:5px;background:${ORANGE};border-radius:3px;margin-top:18px}
+.hero-copy{font-size:17px;line-height:1.65;color:${TEXT};max-width:440px;margin:24px 0 26px}
 .socs{display:flex;gap:12px}
 .soc{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:${BLUE_SOFT};color:${ACCENT};transition:.15s}
-.soc:hover{background:${GOLD};color:${ACCENT2}}
+.soc:hover{background:${ACCENT};color:#fff}
 .soc.sm{width:36px;height:36px}
-.hero .soc{background:rgba(255,255,255,.1);color:#fff}
-.hero .soc:hover{background:${GOLD};color:${ACCENT2}}
-.ftr .soc{background:rgba(255,255,255,.1);color:#fff}
-.ftr .soc:hover{background:${GOLD};color:${ACCENT2}}
-.cta{margin-top:28px;background:${GOLD};color:${ACCENT2};border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;padding:14px 30px;border-radius:8px;cursor:pointer;transition:.15s}
-.cta:hover{filter:brightness(1.05)}
+.cta{margin-top:28px;background:${ACCENT};color:#fff;border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;padding:14px 30px;border-radius:8px;cursor:pointer;transition:.15s}
+.cta:hover{background:${ACCENT2}}
 
 /* live documents */
 .live{background:#fff;border:1px solid ${LINE};border-radius:12px;overflow:hidden;align-self:stretch;max-height:560px;display:flex;flex-direction:column}
-.live-head{display:flex;align-items:center;gap:10px;background:${GOLD};color:${ACCENT2};border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;letter-spacing:.3px;padding:16px 20px;cursor:pointer;width:100%;text-align:left}
-.live-dot{width:8px;height:8px;border-radius:50%;background:${ACCENT}}
+.live-head{display:flex;align-items:center;gap:10px;background:#fff;color:${ACCENT};border:none;border-bottom:2px solid ${GOLD};font-family:'Inter',sans-serif;font-weight:700;font-size:15px;letter-spacing:.3px;padding:16px 20px;cursor:pointer;width:100%;text-align:left}
+.live-dot{width:8px;height:8px;border-radius:50%;background:${ORANGE}}
+.badge-new{background:${ORANGE_SOFT};color:${ORANGE_DEEP};font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:20px;flex-shrink:0}
+.pill-open{background:${ORANGE};color:#3A2400;font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;display:inline-block}
 .live-all{margin-left:auto;opacity:.8}
 .live-track{overflow-y:auto;flex:1}
 .live-track::-webkit-scrollbar{width:5px}.live-track::-webkit-scrollbar-thumb{background:${LINE};border-radius:3px}
@@ -2216,15 +2259,15 @@ const CSS = `
 .clink{color:${ACCENT};text-decoration:none;font-weight:600}.clink:hover{text-decoration:underline}
 
 /* footer */
-.ftr{background:${ACCENT2};border-top:1px solid rgba(255,255,255,.1);margin-top:0}
+.ftr{background:#fff;border-top:2px solid ${GOLD};margin-top:0}
 .ftr-in{display:flex;flex-wrap:wrap;gap:40px;justify-content:space-between;padding:50px 28px 30px}
-.ftr-copy{color:rgba(255,255,255,.72);font-size:13.5px;line-height:1.65;max-width:340px;margin:16px 0 0}
+.ftr-copy{color:${MUTE};font-size:13.5px;line-height:1.65;max-width:340px;margin:16px 0 0}
 .ftr-nav{display:flex;flex-direction:column;gap:4px}
-.ftr-l{background:none;border:none;color:rgba(255,255,255,.72);font:inherit;font-size:13px;font-weight:600;letter-spacing:.4px;padding:5px 0;cursor:pointer;text-align:left}
-.ftr-l:hover{color:${GOLD}}
-.ftr-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:18px 28px;border-top:1px solid rgba(255,255,255,.12);font-size:12.5px;color:rgba(255,255,255,.6)}
-.admin-t{background:none;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.7);font:inherit;font-size:12px;padding:5px 14px;border-radius:40px;cursor:pointer}
-.admin-t:hover{color:${ACCENT2};border-color:${GOLD};background:${GOLD}}
+.ftr-l{background:none;border:none;color:${MUTE};font:inherit;font-size:13px;font-weight:600;letter-spacing:.4px;padding:5px 0;cursor:pointer;text-align:left}
+.ftr-l:hover{color:${ACCENT}}
+.ftr-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:18px 28px;border-top:1px solid ${LINE};font-size:12.5px;color:${MUTE}}
+.admin-t{background:none;border:1px solid ${LINE};color:${MUTE};font:inherit;font-size:12px;padding:5px 14px;border-radius:40px;cursor:pointer}
+.admin-t:hover{color:#fff;border-color:${ACCENT};background:${ACCENT}}
 
 /* admin */
 .ov{position:fixed;inset:0;background:rgba(9,22,51,.4);backdrop-filter:blur(4px);z-index:100;display:grid;place-items:center;padding:20px}
@@ -2243,8 +2286,8 @@ const CSS = `
 .inp:focus{outline:none;border-color:${ACCENT}}
 .fld{display:block}.fld span{display:block;font-size:12px;color:${MUTE};font-weight:600;margin-bottom:5px}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.btn{background:${GOLD};color:${ACCENT2};border:none;font:inherit;font-weight:800;font-size:14px;padding:11px 22px;border-radius:10px;cursor:pointer}
-.btn:hover{filter:brightness(1.04)}
+.btn{background:${ACCENT};color:#fff;border:none;font:inherit;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px;cursor:pointer}
+.btn:hover{background:${ACCENT2}}
 .btn:disabled{opacity:.6;cursor:default}
 .hint{font-size:12px;color:${MUTE};margin:8px 0 0}
 .mlist{display:flex;flex-direction:column;gap:8px}
@@ -2283,12 +2326,14 @@ const CSS = `
 .ltab.on{color:${ACCENT};border-bottom-color:${GOLD}}
 .tbl-wrap{overflow-x:auto;background:#fff;border:1px solid ${LINE};border-radius:10px}
 .tbl{width:100%;border-collapse:collapse;min-width:540px}
-.tbl th{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:#fff;font-weight:700;padding:14px 10px;text-align:center;background:${ACCENT}}
+.tbl th{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:${ACCENT};font-weight:700;padding:14px 10px;text-align:center;background:${BLUE_SOFT};border-bottom:1px solid ${LINE}}
 .tbl th.l,.tbl td.l{text-align:left;padding-left:18px}
-.tbl th.pts{color:${GOLD}}
+.tbl th.pts{color:${GOLD_DEEP}}
 .tbl td{padding:13px 10px;text-align:center;font-size:14px;color:${TEXT};border-bottom:1px solid ${LINE}}
 .tbl tr:last-child td{border-bottom:none}
 .tbl td.rank{color:${MUTE};font-weight:700;width:40px}
+.tbl tbody tr.leader td:first-child{box-shadow:inset 3px 0 0 ${ORANGE}}
+.tbl tbody tr.leader td.rank{color:${ORANGE_DEEP};font-weight:800}
 .tbl td.team{font-weight:700;color:${ACCENT}}
 .tbl td.pts{font-weight:800;color:${GOLD_DEEP};font-size:15px}
 .tbl tbody tr:nth-child(even){background:${BG2}}
@@ -2301,7 +2346,7 @@ const CSS = `
 .fix-team{font-weight:700;font-size:16px;color:${TEXT}}
 .fix-team.h{text-align:right}.fix-team.a{text-align:left}
 .fix-score{background:${ACCENT};color:#fff;font-weight:800;font-size:15px;padding:7px 16px;border-radius:10px;min-width:64px;text-align:center}
-.fix-pom{margin-top:12px;color:${GOLD_DEEP};font-size:13px;font-weight:600;text-align:center}
+.fix-pom{margin-top:12px;color:${ORANGE_DEEP};font-size:13px;font-weight:600;text-align:center}
 .fix-extras{margin-top:10px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:12.5px;color:${MUTE}}
 
 .stat-cols{display:grid;grid-template-columns:1fr 1fr;gap:30px}
@@ -2315,7 +2360,7 @@ const CSS = `
 .stat-val small{font-size:11px;color:${MUTE};margin-left:2px;font-weight:600}
 .cards{display:flex;gap:5px}
 .card{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff}
-.card.g{background:#2E9E5B}.card.y{background:${GOLD};color:${ACCENT2}}.card.r{background:#D0413A}
+.card.g{background:#2E9E5B}.card.y{background:#E8B500;color:#3A2E00}.card.r{background:#D0413A}
 .muted2{color:${MUTE};font-size:13px}
 
 .sq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
@@ -2349,7 +2394,7 @@ const CSS = `
 .report-btn{display:inline-flex;align-items:center;gap:7px;background:${BLUE_SOFT};border:1px solid ${LINE};color:${ACCENT};font:inherit;font-size:13px;font-weight:600;padding:8px 18px;border-radius:40px;cursor:pointer}
 .report-btn:hover{border-color:${ACCENT};background:#dde8fb}
 .report{margin-top:16px;padding-top:16px;border-top:1px solid ${LINE}}
-.report-pom{text-align:center;color:${GOLD_DEEP};font-size:14px;margin-bottom:16px;font-weight:600}
+.report-pom{text-align:center;color:${ORANGE_DEEP};font-size:14px;margin-bottom:16px;font-weight:600}
 .report-stats{background:${BG2};border:1px solid ${LINE};border-radius:12px;padding:14px 18px;margin-bottom:16px}
 .rs-row{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;padding:6px 0}
 .rs-v{font-family:'Archivo';font-weight:800;font-size:18px;color:${ACCENT};text-align:center}
@@ -2400,8 +2445,8 @@ const CSS = `
 .reg-card{background:#fff;border:1px solid ${LINE};border-radius:10px;padding:24px 20px;display:flex;flex-direction:column;gap:14px;min-height:150px}
 .reg-card.soon{opacity:.65}
 .reg-name{font-weight:700;font-size:16px;color:${ACCENT};line-height:1.3}
-.reg-btn{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:${GOLD};color:${ACCENT2};border:none;font-weight:700;font-size:13.5px;padding:11px 16px;border-radius:8px;text-decoration:none;transition:.15s}
-.reg-btn:hover{filter:brightness(1.05)}
+.reg-btn{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:${ACCENT};color:#fff;border:none;font-weight:700;font-size:13.5px;padding:11px 16px;border-radius:8px;text-decoration:none;transition:.15s}
+.reg-btn:hover{background:${ACCENT2}}
 .reg-guide{display:inline-flex;align-items:center;gap:6px;color:${ACCENT};font-size:12.5px;font-weight:600;text-decoration:none;justify-content:center}
 .reg-guide:hover{text-decoration:underline}
 .reg-soon{margin-top:auto;text-align:center;color:${MUTE};font-size:13px;font-weight:600;border:1px dashed ${LINE};border-radius:8px;padding:11px 16px}
