@@ -30,6 +30,7 @@ const SEO = {
   Documents: { title: "Documents & Notifications — Delhi Hockey", desc: "Official announcements, notices and downloadable publications from Delhi Hockey." },
   Calendar: { title: "Calendar — Delhi Hockey", desc: "The official Delhi Hockey calendar of tournaments, trials and events. Download the latest schedules." },
   Partners: { title: "Partners & Sponsors — Delhi Hockey", desc: "The partners, sponsors and supporters who help grow the game of hockey in Delhi." },
+  Support: { title: "Support Us — Sponsor Delhi Hockey", desc: "Support Delhi Hockey through sponsorship or donation. Fund grassroots development, athlete support and equipment, and help grow hockey across the National Capital." },
   Contact: { title: "Contact — Delhi Hockey", desc: "Contact Delhi Hockey. Address: A-69/1 Okhla Phase 2, New Delhi 110020. Email contact.delhihockey@gmail.com." },
   FIH: { title: "FIH Rules — Delhi Hockey", desc: "Official FIH Rules of Hockey followed by Delhi Hockey, with links to the latest outdoor and indoor rulebooks." },
 };
@@ -42,6 +43,7 @@ const NAV = [
   { label: "DOCUMENTS", page: "Documents" },
   { label: "CALENDAR", page: "Calendar" },
   { label: "PARTNERS", page: "Partners" },
+  { label: "SUPPORT US", page: "Support" },
   { label: "CONTACT", page: "Contact" },
   { label: "FIH RULES", page: "FIH" },
 ];
@@ -280,6 +282,7 @@ export default function App() {
           {route === "Documents" && <Documents docs={docs} />}
           {route === "Calendar" && <Calendar items={calendarItems} />}
           {route === "Partners" && <Partners partners={partners} />}
+          {route === "Support" && <Support />}
           {route === "Contact" && <Contact />}
           {route === "FIH" && <FIH items={fihItems} />}
         </main>
@@ -969,6 +972,72 @@ function FIH({ items }) {
           })}
         </div>
       )}
+    </Page>
+  );
+}
+
+// ---------- Support / Sponsorship ----------
+const SUPPORT_MAIL = "mailto:contact.delhihockey@gmail.com?subject=Supporting%20Delhi%20Hockey";
+
+function Support() {
+  const pillars = [
+    { title: "Grassroots & youth development", body: "Coaching camps, school programmes and talent scouting that put sticks in the hands of the next generation across Delhi's neighbourhoods." },
+    { title: "Athlete support & travel", body: "Kit, nutrition, coaching and travel costs so our players can compete at state and national tournaments without financial barriers holding them back." },
+    { title: "Equipment & ground upkeep", body: "Balls, goals, gear and ground bookings for training — the everyday essentials that keep the game running safely and professionally." },
+  ];
+  const tiers = [
+    { name: "Principal Partner", scope: "Season-long lead sponsorship", perks: ["Logo on team kit & event branding", "Featured on the Partners page & socials", "Named association with all Delhi Hockey events"] },
+    { name: "Supporting Partner", scope: "Programme or tournament sponsor", perks: ["Branding at sponsored events", "Recognition on our website & socials", "CSR-aligned impact reporting"] },
+    { name: "Community Backer", scope: "Individuals & small businesses", perks: ["Your name among our supporters", "Updates on the players you help", "The pride of growing Delhi hockey"] },
+  ];
+  return (
+    <Page title="Support Delhi Hockey" sub="Help us build the future of hockey in the National Capital. Whether you're a brand seeking meaningful CSR impact or an individual who loves the game, your support powers everything we do.">
+
+      <div className="sup-vision">
+        <div className="sup-vision-tag">OUR VISION</div>
+        <p className="sup-vision-text">A Delhi where every child with the talent and the will to play hockey has a pathway — from their first stick at a school ground to representing the nation. As the official state association affiliated with Hockey India, we are the custodians of that pathway. But nurturing champions and running the daily business of a sport takes resources, and that's where you come in.</p>
+      </div>
+
+      <h2 className="sup-h2">Where your support goes</h2>
+      <div className="sup-grid">
+        {pillars.map((p, i) => (
+          <div className="sup-card" key={i}>
+            <div className="sup-card-bar"></div>
+            <div className="sup-card-title">{p.title}</div>
+            <div className="sup-card-body">{p.body}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="sup-h2">Why partner with us</h2>
+      <div className="sup-why">
+        <div className="sup-why-item"><span className="sup-why-num">01</span><div><b>Official & credible.</b> The recognised governing body for hockey across the National Capital Territory of Delhi, affiliated with Hockey India.</div></div>
+        <div className="sup-why-item"><span className="sup-why-num">02</span><div><b>Real grassroots reach.</b> Your support touches players, schools and grounds directly — not layers of overhead.</div></div>
+        <div className="sup-why-item"><span className="sup-why-num">03</span><div><b>Visible impact.</b> Association with a growing, respected sport and a transparent partner that publishes its activities openly.</div></div>
+      </div>
+
+      <h2 className="sup-h2">Ways to contribute</h2>
+      <p className="sup-intro">Everyone can play a part — from national brands to individuals who simply love the game. Choose the level that fits you.</p>
+      <div className="sup-tiers">
+        {tiers.map((t, i) => (
+          <div className={"sup-tier" + (i === 0 ? " feat" : "")} key={i}>
+            {i === 0 && <div className="sup-tier-flag">MOST IMPACT</div>}
+            <div className="sup-tier-name">{t.name}</div>
+            <div className="sup-tier-scope">{t.scope}</div>
+            <ul className="sup-tier-perks">
+              {t.perks.map((perk, j) => <li key={j}>{perk}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="sup-cta">
+        <div className="sup-cta-title">Ready to make an impact?</div>
+        <div className="sup-cta-body">We're currently building partnerships for the coming season. Tell us a little about you or your brand, and we'll share our detailed sponsorship deck and how your contribution will be put to work.</div>
+        <a className="cta sup-cta-btn" href={SUPPORT_MAIL}>Get in touch to support us</a>
+        <div className="sup-cta-note">Prefer email? Write to <a className="clink" href="mailto:contact.delhihockey@gmail.com">contact.delhihockey@gmail.com</a></div>
+      </div>
+
     </Page>
   );
 }
@@ -2257,6 +2326,39 @@ const CSS = `
 .clabel{color:${GOLD_DEEP};font-weight:800;font-size:12px;letter-spacing:1.5px;text-transform:uppercase}
 .cbody{font-size:16px;line-height:1.7;margin:12px 0 0;color:${TEXT}}
 .clink{color:${ACCENT};text-decoration:none;font-weight:600}.clink:hover{text-decoration:underline}
+
+/* support / sponsorship */
+.sup-vision{background:${BLUE_SOFT};border:1px solid ${LINE};border-left:4px solid ${ORANGE};border-radius:12px;padding:26px 28px;margin-bottom:8px}
+.sup-vision-tag{color:${ORANGE_DEEP};font-weight:800;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.sup-vision-text{font-size:17px;line-height:1.7;color:${TEXT};margin:0}
+.sup-h2{font-family:'Archivo',sans-serif;font-weight:800;font-size:22px;color:${ACCENT};margin:44px 0 18px;letter-spacing:-.3px}
+.sup-intro{font-size:15px;line-height:1.6;color:${MUTE};margin:-8px 0 20px;max-width:620px}
+.sup-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.sup-card{background:#fff;border:1px solid ${LINE};border-radius:12px;padding:22px;display:flex;flex-direction:column}
+.sup-card-bar{width:38px;height:4px;border-radius:3px;background:${ORANGE};margin-bottom:14px}
+.sup-card-title{font-weight:700;font-size:16px;color:${ACCENT};line-height:1.3;margin-bottom:8px}
+.sup-card-body{font-size:14px;line-height:1.6;color:${MUTE}}
+.sup-why{display:flex;flex-direction:column;gap:14px}
+.sup-why-item{display:flex;gap:16px;align-items:flex-start;background:#fff;border:1px solid ${LINE};border-radius:10px;padding:18px 20px;font-size:15px;line-height:1.6;color:${TEXT}}
+.sup-why-num{font-family:'Archivo';font-weight:800;font-size:20px;color:${GOLD};flex-shrink:0;line-height:1.3}
+.sup-why-item b{color:${ACCENT}}
+.sup-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.sup-tier{position:relative;background:#fff;border:1px solid ${LINE};border-radius:12px;padding:24px 22px}
+.sup-tier.feat{border-color:${ORANGE};border-width:2px;box-shadow:0 6px 20px rgba(255,165,0,.10)}
+.sup-tier-flag{position:absolute;top:-11px;left:22px;background:${ORANGE};color:#3A2400;font-size:10px;font-weight:800;letter-spacing:.5px;padding:4px 12px;border-radius:20px}
+.sup-tier-name{font-family:'Archivo';font-weight:800;font-size:18px;color:${ACCENT}}
+.sup-tier-scope{font-size:13px;color:${GOLD_DEEP};font-weight:600;margin:4px 0 14px}
+.sup-tier-perks{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.sup-tier-perks li{font-size:14px;line-height:1.5;color:${TEXT};padding-left:22px;position:relative}
+.sup-tier-perks li::before{content:'';position:absolute;left:0;top:6px;width:10px;height:10px;border-radius:50%;background:${BLUE_SOFT};border:2px solid ${GOLD}}
+.sup-cta{margin-top:44px;background:${ACCENT};border-radius:16px;padding:38px 34px;text-align:center;color:#fff}
+.sup-cta-title{font-family:'Archivo';font-weight:800;font-size:24px;margin-bottom:12px}
+.sup-cta-body{font-size:15.5px;line-height:1.7;color:rgba(255,255,255,.85);max-width:560px;margin:0 auto 24px}
+.sup-cta-btn{margin-top:0;background:${ORANGE};color:#3A2400}
+.sup-cta-btn:hover{background:#ffb733}
+.sup-cta-note{margin-top:18px;font-size:13.5px;color:rgba(255,255,255,.75)}
+.sup-cta-note .clink{color:${GOLD}}
+@media(max-width:760px){.sup-grid{grid-template-columns:1fr}.sup-tiers{grid-template-columns:1fr}}
 
 /* footer */
 .ftr{background:#fff;border-top:2px solid ${GOLD};margin-top:0}
